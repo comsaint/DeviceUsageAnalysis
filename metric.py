@@ -9,7 +9,10 @@ dc = {
     10: 3.0,
     30: 5.0,
     100: 8.0,
-    300: 16.0
+    300: 16.0,
+    500: 24.0,
+    700: 32.0,
+    1000: 40.0  # or 1024MB?
 }
 plan_cost = OrderedDict(sorted(dc.items(), key=lambda t: t[0]))
 
@@ -35,7 +38,7 @@ def compute_cost_with_plan_and_usage(plan, usage):
 def get_best_plan_and_cost(usage, plan_used=None):
     """
     Given a usage, returns the best plan to subscribe and cost.
-    If a plan is given, also returns the cost difference between best plan and plan_used.
+    If plan_used is given, also returns the cost using plan_used.
     :param usage:
     :param plan_used:
     :return:
@@ -49,7 +52,7 @@ def get_best_plan_and_cost(usage, plan_used=None):
     if plan_used is None:
         return best_plan, best_cost
     else:
-        return best_plan, best_cost, cost_dict[plan_used] - best_cost
+        return best_plan, best_cost, cost_dict[plan_used]
 
 
 if __name__ == '__main__':
