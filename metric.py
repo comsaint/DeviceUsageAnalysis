@@ -4,6 +4,7 @@ Define metrics.
 import numpy as np
 from collections import OrderedDict
 dc = {
+    0: 0.0,
     2: 1.0,
     5: 2.0,
     10: 3.0,
@@ -12,9 +13,16 @@ dc = {
     300: 16.0,
     500: 24.0,
     700: 32.0,
-    1000: 40.0  # or 1024MB?
+    1024: 40.0,
+    2048: 60.0,
+    3072: 80.0,
+    4096: 100.0
 }
 plan_cost = OrderedDict(sorted(dc.items(), key=lambda t: t[0]))
+
+
+def get_plan_fix_cost(plan):
+    return dc[plan]
 
 
 def compute_cost_with_plan_and_usage(plan, usage):
@@ -28,7 +36,7 @@ def compute_cost_with_plan_and_usage(plan, usage):
         return plan_cost[plan]
     else:
         extra_used = usage - plan
-        if plan in [2, 5]:
+        if plan in [0, 2, 5]:
             extra_cost = extra_used * (0.001*1024)  # $0.001 per KB ~= $1 per MB
         else:
             extra_cost = extra_used * 0.29  # Assume no round-off
