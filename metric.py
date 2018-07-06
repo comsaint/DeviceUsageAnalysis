@@ -125,6 +125,66 @@ def compare_plans(df, col_plan_x, col_plan_y, col_usage='used', index='iccid'):
     pass
 
 
+def compute_best_global_plan_with_pool(df, col_id='iccid', col_usage='used', plans=fc):
+    """
+    Given usage of all devices individually, calculate the best global plan assignment strategy.
+    Returns a copy of df with best plan
+    :param df: DataFrame with id and usage of all devices.
+    :param col_id:
+    :param col_usage:
+    :param plans: a Dict of plan: fixed cost {plan: cost}.
+    :return:
+    """
+    def get_available_pool_size(dataframe, col_plan, col_used):
+        """
+
+        :param dataframe:
+        :param col_plan:
+        :param col_used:
+        :return:
+        """
+        plan_cnt = dataframe.groupby(col_plan)[col_plan].count().to_dict()
+        used_cnt = dataframe.groupby(col_plan)[col_used].sum().to_dict()
+        pool_size = dict()
+        # Initialize
+        for k in fc.keys():
+            pool_size[k] = 0
+        # Update
+        for k, v in plan_cnt.items():
+            pool_size.update({k: k*v - used_cnt[k]})
+        return pool_size
+
+    # get best individual plan of each device, as heuristic and start position
+    df['best_local_plan'] = df[col_usage].apply(get_best_plan)
+
+    df_sorted = df.sort_values(by=[col_usage, 'best_local_plan'], ascending=True)  # sort devices by usage
+    plans_sorted = sorted(plans.keys(), reverse=False)
+
+    # assign best global plan to each device
+    df['best_global_plan'] = df['best_local_plan']  # initialize
+    avail_pool = get_available_pool_size(df_sorted, col_plan='best_local_plan', col_used='used')
+    bins = iter(plans_sorted)
+    cur_bin = next(bins)
+    df_result = df_sorted.copy()
+    for device in df_sorted.itertuples():
+        if avail_pool[cur_bin] <= getattr(device, "used"):  # if current pool cannot accommodate this device...
+            while getattr(device, "used") > cur_bin:  # ...try next bin, until there is a bin
+                try:
+                    cur_bin = next(bins)
+                    avail_pool = get_available_pool_size(df_result, col_plan='best_global_plan', col_used='used')  # update pool
+                except StopIteration:  # no more optimization
+                    total_cost = calculate_cost_with_data_pool(df_result, col_plan='best_global_plan', col_used='used')
+                    return df_result, total_cost
+        if getattr(device, "best_local_plan") == cur_bin:  # this device is already in current bin. Move to next device
+            continue
+        # Change plan for this device
+        df_result.set_value(getattr(device, col_id), 'best_global_plan', cur_bin)
+        # update available data pool
+        avail_pool = get_available_pool_size(df_result, col_plan='best_global_plan', col_used='used')
+    total_cost = calculate_cost_with_data_pool(df_result, col_plan='best_global_plan', col_used='used')
+    return df_result, total_cost
+
+
 if __name__ == '__main__':
     for use in np.arange(0, 10, 0.1):
         p, c = get_best_plan(usage=use)
